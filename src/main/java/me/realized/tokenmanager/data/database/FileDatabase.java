@@ -2,6 +2,7 @@ package me.realized.tokenmanager.data.database;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+
 import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
@@ -16,6 +17,7 @@ import java.util.OptionalLong;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
+
 import me.realized.tokenmanager.TokenManagerPlugin;
 import me.realized.tokenmanager.command.commands.subcommands.OfflineCommand.ModifyType;
 import me.realized.tokenmanager.config.Config;
@@ -92,6 +94,20 @@ public class FileDatabase extends AbstractDatabase {
     }
 
     @Override
+    public OptionalLong getSync(final String key, final boolean create) throws Exception {
+        final OptionalLong cached = from(data.get(key));
+
+        if (!cached.isPresent() && create) {
+            final long defaultBalance = plugin.getConfiguration().getDefaultBalance();
+            data.put(key, defaultBalance);
+
+            return from(defaultBalance);
+        }
+
+        return cached;
+    }
+
+    @Override
     public void set(final Player player, final long value) {
         data.put(from(player), value);
     }
@@ -133,15 +149,47 @@ public class FileDatabase extends AbstractDatabase {
     }
 
     @Override
+    public boolean setSync(final String key, final ModifyType type, final long amount, final long balance, final boolean silent) {
+        if (type == ModifyType.SET) {
+            data.put(key, amount);
+            return true;
+        }
+
+        final OptionalLong cached = from(data.get(key));
+
+        if (!cached.isPresent()) {
+            return false;
+        }
+
+        data.put(key, type.apply(cached.getAsLong(), amount));
+
+        final Player player;
+
+        if (ProfileUtil.isUUID(key)) {
+            player = Bukkit.getPlayer(UUID.fromString(key));
+        } else {
+            player = Bukkit.getPlayerExact(key);
+        }
+
+        if (player != null && !silent) {
+            plugin.getLang().sendMessage(player, true, "COMMAND." + (type == ModifyType.ADD ? "add" : "remove"), "amount", amount);
+        }
+
+        return true;
+    }
+
+    @Override
     public void load(final AsyncPlayerPreLoginEvent event, final Function<Long, Long> modifyLoad) {
         plugin.doSync(() -> get(online ? event.getUniqueId().toString() : event.getName(), null, null, true));
     }
 
     @Override
-    public void load(final Player player) {}
+    public void load(final Player player) {
+    }
 
     @Override
-    public void save(final Player player) {}
+    public void save(final Player player) {
+    }
 
     @Override
     public void shutdown() throws IOException {
@@ -186,7 +234,7 @@ public class FileDatabase extends AbstractDatabase {
     public void transfer(final CommandSender sender, final Consumer<String> errorHandler) {
         final Config config = plugin.getConfiguration();
         final String query = String
-            .format("SELECT %s, tokens FROM %s;", online ? "uuid" : "name", StringEscapeUtils.escapeSql(plugin.getConfiguration().getMysqlTable()));
+                .format("SELECT %s, tokens FROM %s;", online ? "uuid" : "name", StringEscapeUtils.escapeSql(plugin.getConfiguration().getMysqlTable()));
         final HikariConfig hikariConfig = new HikariConfig();
         hikariConfig.setJdbcUrl("jdbc:mysql://" + config.getMysqlHostname() + ":" + config.getMysqlPort() + "/" + config.getMysqlDatabase());
         hikariConfig.setDriverClassName("com.mysql.jdbc.Driver");
@@ -198,10 +246,10 @@ public class FileDatabase extends AbstractDatabase {
             sender.sendMessage(ChatColor.BLUE + plugin.getDescription().getFullName() + ": Loading user data from MySQL database...");
 
             try (
-                HikariDataSource dataSource = new HikariDataSource(hikariConfig);
-                Connection connection = dataSource.getConnection();
-                PreparedStatement statement = connection.prepareStatement(query);
-                ResultSet resultSet = statement.executeQuery()
+                    HikariDataSource dataSource = new HikariDataSource(hikariConfig);
+                    Connection connection = dataSource.getConnection();
+                    PreparedStatement statement = connection.prepareStatement(query);
+                    ResultSet resultSet = statement.executeQuery()
             ) {
                 sender.sendMessage(ChatColor.BLUE + plugin.getDescription().getFullName() + ": Load Complete. Starting the transfer...");
 

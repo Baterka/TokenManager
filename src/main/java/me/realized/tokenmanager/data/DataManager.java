@@ -96,11 +96,25 @@ public class DataManager implements Loadable, Listener {
         }
     }
 
+    public OptionalLong getSync(final String key) throws Exception {
+        if (database != null) {
+            return database.getSync(key,false);
+        }
+        throw new Exception("No database connection!");
+    }
+
     public void set(final String key, final ModifyType type, final long amount, final long balance, final boolean silent, final Runnable onDone,
         final Consumer<String> onError) {
         if (database != null) {
             database.set(key, type, amount, balance, silent, onDone, onError);
         }
+    }
+
+    public boolean setSync(final String key, final ModifyType type, final long amount, final long balance, final boolean silent) {
+        if (database != null) {
+            return database.setSync(key, type, amount, balance, silent);
+        }
+        return false;
     }
 
     public void transfer(final CommandSender sender, final Consumer<String> onError) {

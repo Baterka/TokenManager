@@ -1,11 +1,13 @@
 package me.realized.tokenmanager;
 
 import com.google.common.collect.Lists;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.stream.Collectors;
+
 import lombok.Getter;
 import me.realized.tokenmanager.api.TokenManager;
 import me.realized.tokenmanager.command.commands.TMCommand;
@@ -25,7 +27,7 @@ import me.realized.tokenmanager.util.Log;
 import me.realized.tokenmanager.util.NumberUtil;
 import me.realized.tokenmanager.util.Reloadable;
 import me.realized.tokenmanager.util.StringUtil;
-import org.bstats.bukkit.Metrics;
+//import org.bstats.bukkit.Metrics;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -86,7 +88,7 @@ public class TokenManagerPlugin extends JavaPlugin implements TokenManager, List
         new TMCommand(this).register();
         new TokenCommand(this).register();
 
-        new Metrics(this);
+//        new Metrics(this);
 
         if (!configuration.isCheckForUpdates()) {
             return;
@@ -132,7 +134,7 @@ public class TokenManagerPlugin extends JavaPlugin implements TokenManager, List
                 Log.info("Loaded " + loadable.getClass().getSimpleName() + ".");
             } catch (Exception ex) {
                 Log.error("There was an error while loading " + loadable.getClass().getSimpleName()
-                    + "! If you believe this is an issue from the plugin, please contact the developer.");
+                        + "! If you believe this is an issue from the plugin, please contact the developer.");
                 Log.error("Cause of error: " + ex.getMessage());
                 ex.printStackTrace();
                 return false;
@@ -156,7 +158,7 @@ public class TokenManagerPlugin extends JavaPlugin implements TokenManager, List
                 Log.info("Unloaded " + loadable.getClass().getSimpleName() + ".");
             } catch (Exception ex) {
                 Log.error("There was an error while unloading " + loadable.getClass().getSimpleName()
-                    + "! If you believe this is an issue from the plugin, please contact the developer.");
+                        + "! If you believe this is an issue from the plugin, please contact the developer.");
                 Log.error("Cause of error: " + ex.getMessage());
                 ex.printStackTrace();
                 return false;
@@ -242,20 +244,24 @@ public class TokenManagerPlugin extends JavaPlugin implements TokenManager, List
     }
 
     @Override
-    public void addTokens(final String key, final long amount, final boolean silent) {
-        dataManager.get(key, balance -> {
-            if (!balance.isPresent()) {
-                return;
-            }
+    public boolean addTokens(final String key, final long amount, final boolean silent) throws Exception {
+        OptionalLong balance = dataManager.getSync(key);
+        if (!balance.isPresent())
+            return false;
 
-            final ModifyType type = ModifyType.ADD;
-            dataManager.set(key, type, amount, type.apply(balance.getAsLong(), amount), silent, null, Log::error);
-        }, Log::error);
+        final ModifyType type = ModifyType.ADD;
+
+        if (dataManager.setSync(key, type, amount, type.apply(balance.getAsLong(), amount), silent)){
+            Log.info("User '" + key + "' received " + amount + " Tokens by API.");
+            return true;
+        }
+
+        return false;
     }
 
     @Override
-    public void addTokens(final String key, final long amount) {
-        addTokens(key, amount, false);
+    public boolean addTokens(final String key, final long amount) throws Exception {
+        return addTokens(key, amount, false);
     }
 
     @Override
@@ -297,7 +303,7 @@ public class TokenManagerPlugin extends JavaPlugin implements TokenManager, List
             return true;
         } catch (Exception ex) {
             Log.error("There was an error while " + (unloaded ? "loading " : "unloading ") + name
-                + "! If you believe this is an issue from the plugin, please contact the developer.");
+                    + "! If you believe this is an issue from the plugin, please contact the developer.");
             Log.error("Cause of error: " + ex.getMessage());
             ex.printStackTrace();
             return false;
@@ -310,9 +316,9 @@ public class TokenManagerPlugin extends JavaPlugin implements TokenManager, List
 
     public List<String> getReloadables() {
         return loadables.stream()
-            .filter(loadable -> loadable instanceof Reloadable)
-            .map(loadable -> loadable.getClass().getSimpleName())
-            .collect(Collectors.toList());
+                .filter(loadable -> loadable instanceof Reloadable)
+                .map(loadable -> loadable.getClass().getSimpleName())
+                .collect(Collectors.toList());
     }
 
     public String handlePlaceholderRequest(final Player player, final String identifier) {

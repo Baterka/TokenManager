@@ -2,6 +2,7 @@ package me.realized.tokenmanager.data.database;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+
 import java.io.File;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -23,6 +24,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
+
 import lombok.Getter;
 import me.realized.tokenmanager.TokenManagerPlugin;
 import me.realized.tokenmanager.command.commands.subcommands.OfflineCommand.ModifyType;
@@ -72,9 +74,9 @@ public class MySQLDatabase extends AbstractDatabase {
         final Config config = plugin.getConfiguration();
         final HikariConfig hikariConfig = new HikariConfig();
         hikariConfig.setJdbcUrl(config.getMysqlUrl()
-            .replace("%hostname%", config.getMysqlHostname())
-            .replace("%port%", config.getMysqlPort())
-            .replace("%database%", config.getMysqlDatabase())
+                .replace("%hostname%", config.getMysqlHostname())
+                .replace("%port%", config.getMysqlPort())
+                .replace("%database%", config.getMysqlDatabase())
         );
         hikariConfig.setDriverClassName("com.mysql.jdbc.Driver");
         hikariConfig.setUsername(config.getMysqlUsername());
@@ -105,8 +107,8 @@ public class MySQLDatabase extends AbstractDatabase {
         }
 
         try (
-            Connection connection = dataSource.getConnection();
-            Statement statement = connection.createStatement()
+                Connection connection = dataSource.getConnection();
+                Statement statement = connection.createStatement()
         ) {
             statement.execute(Query.CREATE_TABLE.query);
 
@@ -134,6 +136,18 @@ public class MySQLDatabase extends AbstractDatabase {
 
             Log.error("Failed to obtain data for " + key + ": " + ex.getMessage());
             ex.printStackTrace();
+        }
+    }
+
+    @Override
+    public OptionalLong getSync(final String key, final boolean create) throws Exception {
+        try (Connection connection = dataSource.getConnection()) {
+            return select(connection, key, create);
+        } catch (Exception ex) {
+
+            Log.error("Failed to obtain data for " + key + ": " + ex.getMessage());
+            ex.printStackTrace();
+            throw ex;
         }
     }
 
@@ -166,6 +180,24 @@ public class MySQLDatabase extends AbstractDatabase {
                 ex.printStackTrace();
             }
         });
+    }
+
+    public boolean setSync(String key, ModifyType type, long amount, long balance, boolean silent) {
+        try (Connection connection = dataSource.getConnection()) {
+            update(connection, key, balance);
+
+            if (usingRedis) {
+                publish(key + ":" + type.name() + ":" + amount + ":" + silent);
+            } else {
+                plugin.doSync(() -> onModification(key, type, amount, silent));
+            }
+
+            return true;
+        } catch (Exception ex) {
+            Log.error("Failed to save data for " + key + ": " + ex.getMessage());
+            ex.printStackTrace();
+            return false;
+        }
     }
 
     @Override
@@ -301,8 +333,8 @@ public class MySQLDatabase extends AbstractDatabase {
             sender.sendMessage(ChatColor.BLUE + plugin.getDescription().getFullName() + ": Load Complete. Starting the transfer...");
 
             try (
-                Connection connection = dataSource.getConnection();
-                PreparedStatement statement = connection.prepareStatement(Query.INSERT_OR_UPDATE.query)
+                    Connection connection = dataSource.getConnection();
+                    PreparedStatement statement = connection.prepareStatement(Query.INSERT_OR_UPDATE.query)
             ) {
                 connection.setAutoCommit(false);
                 int i = 0;
@@ -428,7 +460,8 @@ public class MySQLDatabase extends AbstractDatabase {
     private void publish(final String message) {
         try (Jedis jedis = jedisPool.getResource()) {
             jedis.publish("tokenmanager", message);
-        } catch (JedisConnectionException ignored) {}
+        } catch (JedisConnectionException ignored) {
+        }
     }
 
     private enum Query {

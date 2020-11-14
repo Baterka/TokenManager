@@ -108,7 +108,7 @@ public interface TokenManager {
      * @param silent true to prevent sending message if target player is online
      * @since v3.1.0
      */
-    void addTokens(final String key, final long amount, final boolean silent);
+    boolean addTokens(final String key, final long amount, final boolean silent) throws Exception;
 
 
     /**
@@ -116,7 +116,7 @@ public interface TokenManager {
      *
      * @see #addTokens(String, long, boolean)
      */
-    void addTokens(final String key, final long amount);
+    boolean addTokens(final String key, final long amount) throws Exception;
 
 
     /**

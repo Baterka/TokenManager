@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+
 import me.realized.tokenmanager.TokenManagerPlugin;
 import me.realized.tokenmanager.command.BaseCommand;
 import me.realized.tokenmanager.util.NumberUtil;
@@ -13,6 +14,7 @@ import me.realized.tokenmanager.util.profile.ProfileUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.RemoteConsoleCommandSender;
 import org.bukkit.entity.Player;
 
 public class OfflineCommand extends BaseCommand {
@@ -62,7 +64,8 @@ public class OfflineCommand extends BaseCommand {
 
         // Case: Target player is online
         if (target != null) {
-            sendMessage(sender, true, type.getMessageKey(), "amount", amount, "player", target.getName());
+            if (!(sender instanceof RemoteConsoleCommandSender))
+                sendMessage(sender, true, type.getMessageKey(), "amount", amount, "player", target.getName());
 
             if (type == ModifyType.SET) {
                 dataManager.set(target, amount);
@@ -104,8 +107,8 @@ public class OfflineCommand extends BaseCommand {
                 }
 
                 dataManager.set(key.get(), type, amount, type.apply(balance.getAsLong(), amount), silent,
-                    () -> sendMessage(sender, true, type.getMessageKey(), "amount", amount, "player", args[1]),
-                    error -> sendMessage(sender, false, "&cThere was an error while executing this command, please contact an administrator."));
+                        () -> sendMessage(sender, true, type.getMessageKey(), "amount", amount, "player", args[1]),
+                        error -> sendMessage(sender, false, "&cThere was an error while executing this command, please contact an administrator."));
             }, error -> sender.sendMessage(ChatColor.RED + "Could not get token balance of " + key.get() + ": " + error));
         });
     }
@@ -118,6 +121,6 @@ public class OfflineCommand extends BaseCommand {
         }
 
         plugin.doAsync(() -> ProfileUtil.getUUID(input, uuid -> consumer.accept(Optional.ofNullable(uuid)),
-            error -> sender.sendMessage(ChatColor.RED + "Failed to obtain UUID of " + input + ": " + error)));
+                error -> sender.sendMessage(ChatColor.RED + "Failed to obtain UUID of " + input + ": " + error)));
     }
 }

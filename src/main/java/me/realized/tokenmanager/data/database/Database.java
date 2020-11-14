@@ -30,9 +30,13 @@ public interface Database {
 
     void get(final String key, final Consumer<OptionalLong> onLoad, final Consumer<String> onError, final boolean create);
 
+    OptionalLong getSync(final String key, final boolean create) throws Exception;
+
     void set(final Player player, final long value);
 
     void set(final String key, final ModifyType type, final long amount, final long balance, final boolean silent, final Runnable onDone, final Consumer<String> onError);
+
+    boolean setSync(final String key, final ModifyType type, final long amount, final long balance, final boolean silent);
 
     void load(final AsyncPlayerPreLoginEvent event, final Function<Long, Long> modifyLoad);
 
